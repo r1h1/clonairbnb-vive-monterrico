@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administracion - ViveMonterrico</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/estilos.css" rel="stylesheet">
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container">
+    <h4 class="mb-3">Administracion</h4>
+    <div id="msg"></div>
+
+    <ul class="nav nav-tabs mb-3">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#t-users">Usuarios</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#t-chalets">Chalets</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#t-reservas">Reservas</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#t-anal" onclick="cargarAnal()">Analitica global</button></li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="t-users">
+        <div class="table-responsive"><table class="table table-sm align-middle">
+          <thead><tr><th>#</th><th>Nombre</th><th>Email</th><th>Telefono</th><th>Rol</th><th></th></tr></thead>
+          <tbody id="tbUsers"></tbody>
+        </table></div>
+      </div>
+      <div class="tab-pane fade" id="t-chalets">
+        <div class="table-responsive"><table class="table table-sm align-middle">
+          <thead><tr><th>#</th><th>Nombre</th><th>Playa</th><th>Dueno</th><th>Precio</th><th>Cap.</th></tr></thead>
+          <tbody id="tbChalets"></tbody>
+        </table></div>
+      </div>
+      <div class="tab-pane fade" id="t-reservas">
+        <div class="table-responsive"><table class="table table-sm align-middle">
+          <thead><tr><th>#</th><th>Chalet</th><th>Cliente</th><th>Fechas</th><th>Estado</th><th>Monto</th></tr></thead>
+          <tbody id="tbReservas"></tbody>
+        </table></div>
+      </div>
+      <div class="tab-pane fade" id="t-anal">
+        <div class="row g-4">
+          <div class="col-lg-6"><div class="card stat-card"><div class="card-body"><h6>Noches por mes (global)</h6><canvas id="aMes"></canvas></div></div></div>
+          <div class="col-lg-6"><div class="card stat-card"><div class="card-body"><h6>Chalets mas reservados</h6><canvas id="aTop"></canvas></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/sesion.js"></script>
+  <script>
+    Sesion.exigir('admin');
+    pintarNav();
+
+    async function cargarUsers() {
+      const us = await API.get('/admin/usuarios');
+      document.getElementById('tbUsers').innerHTML = us.map(u => `
+        <tr><td>${u.id}</td><td>${u.nombre}</td><td>${u.email}</td><td>${u.telefono}</td>
+        <td><span class="badge bg-light text-dark border">${u.rol}</span></td>
+        <td>${u.rol==='admin'?'':`<button class="btn btn-outline-danger btn-sm" onclick="borrarUser(${u.id})">Eliminar</button>`}</td></tr>`).join('');
+    }
+    async function borrarUser(id) {
+      if (!confirm('Eliminar usuario y todos sus datos asociados?')) return;
+      try { await API.del('/admin/usuarios/' + id); aviso('msg','Usuario eliminado','success'); cargarUsers(); cargarChalets(); cargarReservas(); }
+      catch (e) { aviso('msg', e.message); }
+    }
+    async function cargarChalets() {
+      const cs = await API.get('/admin/chalets');
+      document.getElementById('tbChalets').innerHTML = cs.map(c => `<tr><td>${c.id}</td><td>${c.nombre}</td><td>${c.playa}</td><td>${c.dueno}</td><td>${q(c.precio_noche)}</td><td>${c.capacidad}</td></tr>`).join('');
+    }
+    async function cargarReservas() {
+      const rs = await API.get('/admin/reservas');
+      document.getElementById('tbReservas').innerHTML = rs.map(r => `<tr><td>${r.id}</td><td>${r.chalet_nombre}</td><td>${r.cliente_nombre}</td><td class="small">${r.fecha_entrada} → ${r.fecha_salida}</td><td>${badgeEstado(r.estado)}</td><td>${q(r.monto_total)}</td></tr>`).join('');
+    }
+    let charts = {};
+    async function cargarAnal() {
+      const d = await API.get('/dueno/analitica/demanda');
+      const mk = (id, cfg) => { if (charts[id]) charts[id].destroy(); charts[id] = new Chart(document.getElementById(id), cfg); };
+      mk('aMes', { type:'bar', data:{ labels:d.por_mes.map(m=>m.mes), datasets:[{data:d.por_mes.map(m=>m.noches),backgroundColor:'#0f9b8e'}] }, options:{plugins:{legend:{display:false}}} });
+      mk('aTop', { type:'doughnut', data:{ labels:d.chalets_top.map(x=>x.nombre), datasets:[{data:d.chalets_top.map(x=>x.reservas),backgroundColor:['#0f9b8e','#16a34a','#f59e0b','#6366f1','#ec4899']}] } });
+    }
+
+    cargarUsers(); cargarChalets(); cargarReservas();
+  </script>
+</body>
+</html>

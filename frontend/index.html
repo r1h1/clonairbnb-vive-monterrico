@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ViveMonterrico - Chalets de playa</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/estilos.css" rel="stylesheet">
+</head>
+
+<body>
+  <div id="nav"></div>
+
+  <div class="container">
+    <section class="hero mb-4">
+      <div class="col-lg-7">
+        <h1 class="display-5">Encuentra el chalet perfecto en <span class="brand-word">ViveMonterrico</span></h1>
+        <p class="lead mb-0">Reserva chalets frente al hermoso mar. Rápido, organizado y con confirmacion del
+          propietario.</p>
+      </div>
+    </section>
+
+    <div class="card shadow border-0 rounded-4 mb-5">
+      <div class="card-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Fecha de entrada</label>
+            <input type="date" id="f_entrada" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Fecha de salida</label>
+            <input type="date" id="f_salida" class="form-control">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small mb-1">Huespedes</label>
+            <input type="number" id="f_huespedes" class="form-control" min="1" placeholder="2">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small mb-1">Playa</label>
+            <select id="f_playa" class="form-select">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <button class="btn btn-acb w-100" onclick="buscar()">Buscar chalets</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h3 class="fw-bold mb-0">
+        Chalets disponibles
+      </h3>
+
+      <h4 id="totalResultados" class="fw-bold mb-4">
+      
+</h4>
+    </div>
+    <div id="grid" class="row g-4"></div>
+    <div id="vacio" class="text-muted d-none py-4">No hay chalets disponibles con esos filtros.</div>
+
+    <footer class="text-center py-5 small">ViveMonterrico - Reservas de chalets en las playas de Guatemala.</footer>
+  </div>
+
+  <!-- Modal detalle / reserva -->
+  <div class="modal fade" id="modalChalet" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content" id="modalContenido"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/sesion.js"></script>
+  <script>
+    pintarNav();
+
+    let CHALETS = [];
+
+    async function buscar() {
+      try {
+        const p = new URLSearchParams();
+
+        if (f_entrada.value && f_salida.value) {
+          p.set('entrada', f_entrada.value);
+          p.set('salida', f_salida.value);
+        }
+
+        [
+          ['huespedes', f_huespedes.value],
+          ['playa', f_playa.value]
+        ].forEach(([k, v]) => v && p.set(k, v));
+
+        CHALETS = await API.get(`/chalets${p.toString() ? '?' + p : ''}`);
+
+        pintarGrid();
+
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function pintarGrid() {
+      const grid = document.getElementById('grid');
+      document.getElementById('vacio').classList.toggle('d-none', CHALETS.length > 0);
+
+      document.getElementById("totalResultados").textContent =
+    `${CHALETS.length} chalet${CHALETS.length != 1 ? "s" : ""}`;
+
+      // Llenar filtro de playas una sola vez
+      if (f_playa.options.length <= 1) {
+        [...new Set(CHALETS.map(c => c.playa))].forEach(pl => {
+          const o = document.createElement('option');
+          o.value = pl;
+          o.textContent = pl;
+          f_playa.appendChild(o);
+        });
+      }
+
+      grid.innerHTML = CHALETS.map(c => `
+    <div class="col-md-6 col-lg-3 mb-4">
+      <div class="card h-100 border-0 shadow-sm rounded-4
+           style="cursor:pointer"
+           onclick="verChalet(${c.id})">
+
+        ${cajaFoto(c.fotos[0], 210)}
+
+        <div class="card-body d-flex flex-column">
+
+          <h5 class="card-title mb-1">${c.nombre}</h5>
+
+          <p class="text-muted small mb-3">
+            ${c.playa}<br>
+            Hasta ${c.capacidad} personas
+          </p>
+
+          <div class="mt-auto d-flex justify-content-between align-items-center">
+
+            <div class="fs-5 fw-bold">
+                ${q(c.precio_noche)}
+                <small class="fw-normal text-muted">
+                    / noche
+                </small>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  `).join('');
+    }
+
+    async function verChalet(id) {
+      const c = await API.get('/chalets/' + id);
+
+      let comentarios = [];
+      try {
+        comentarios = await API.get('/chalets/' + id + '/comentarios');
+      } catch { }
+
+      const u = Sesion.usuario();
+      const ocupadas = c.noches_ocupadas || [];
+
+      // Avisos
+      const avisos = comentarios.length
+        ? comentarios.map(x => `
+            <div class="alert alert-warning py-2 px-3 mb-2">
+                📢 ${x.mensaje}
+            </div>
+        `).join('')
+        : `<div class="text-muted">No hay avisos del propietario.</div>`;
+
+      // Temporadas altas
+      const reglas = (c.reglas_precio || []).length
+        ? `
+        <div class="card mb-3">
+            <div class="card-header fw-bold">
+              Temporadas altas
+            </div>
+            <div class="card-body py-2">
+                <ul class="mb-0">
+                    ${c.reglas_precio.map(r => `
+                        <li>
+                            Recargo de
+                            <strong>+${r.porcentaje}%</strong>
+                            del
+                            <span class="text-primary">${r.fecha_inicio}</span>
+                            al
+                            <span class="text-primary">${r.fecha_fin}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        </div>
+        `
+        : '';
+
+      // Fechas ocupadas
+      const fechas = ocupadas.length
+        ? `
+        <div class="card mb-3">
+            <div class="card-header fw-bold">
+                Fechas no disponibles
+            </div>
+
+            <div class="card-body">
+
+                <div class="mb-2">
+                    <span class="badge bg-danger">
+                        ${ocupadas.length} día(s) ocupado(s)
+                    </span>
+                </div>
+
+                <div class="d-flex flex-wrap gap-1">
+                    ${ocupadas.map(f =>
+          `<span class="badge bg-secondary">${f}</span>`
+        ).join('')}
+                </div>
+
+            </div>
+        </div>
+        `
+        : `
+        <div class="alert alert-success">
+            Disponible durante todo el calendario.
+        </div>
+        `;
+
+      // Formulario de reserva
+      let formReserva = '';
+
+      if (!u) {
+
+        formReserva = `
+        <div class="alert alert-info">
+            Inicia sesión como cliente para realizar una reserva.
+            <br>
+            <a href="login.html">Ir al inicio de sesión</a>
+        </div>
+        `;
+
+      } else if (u.rol === 'cliente') {
+
+        formReserva = `
+        <div class="card">
+
+            <div class="card-header fw-bold">
+                Solicitar reserva
+            </div>
+
+            <div class="card-body">
+
+                <div id="msgReserva"></div>
+
+                <div class="row g-3">
+
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            Fecha de entrada
+                        </label>
+                        <input
+                            type="date"
+                            id="r_ent"
+                            class="form-control">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            Fecha de salida
+                        </label>
+                        <input
+                            type="date"
+                            id="r_sal"
+                            class="form-control">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            Huéspedes
+                        </label>
+                        <input
+                            type="number"
+                            id="r_hue"
+                            min="1"
+                            max="${c.capacidad}"
+                            value="2"
+                            class="form-control">
+                    </div>
+
+                    <div class="col-12">
+
+                        <button
+                            class="btn btn-acb w-100"
+                            onclick="reservar(${c.id})">
+
+                            Solicitar reserva
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <hr>
+
+                <small class="text-muted">
+                    El pago se realiza mediante transferencia bancaria.
+                    Después de solicitar la reserva podrás subir el comprobante
+                    desde la sección <strong>Mis reservas</strong>.
+                </small>
+
+            </div>
+
+        </div>
+        `;
+
+      } else {
+
+        formReserva = `
+        <div class="alert alert-secondary">
+            Has iniciado sesión como
+            <strong>${u.rol}</strong>.
+            Las reservas únicamente pueden ser realizadas por clientes.
+        </div>
+        `;
+      }
+
+      modalContenido.innerHTML = `
+    <div class="modal-header">
+
+        <div>
+
+            <h4 class="modal-title mb-1">
+                ${c.nombre}
+            </h4>
+
+            <small class="text-muted">
+                ${c.playa}
+            </small>
+
+        </div>
+
+        <button
+            class="btn-close"
+            data-bs-dismiss="modal">
+        </button>
+
+    </div>
+
+    <div class="modal-body">
+
+        <div class="d-flex gap-2 mb-4 overflow-auto">
+
+            ${c.fotos.length
+          ? c.fotos.map(f =>
+            `<img
+                            src="${f}"
+                            style="height:220px;
+                                    object-fit:cover;
+                                    width:100%;
+                                    border-radius:12px;">`
+          ).join('')
+          : cajaFoto(null, 160, '250px', 10)
+        }
+
+        </div>
+
+        <div class="card mb-3">
+
+            <div class="card-body">
+
+                <div class="row">
+
+                    <div class="col-md-4">
+                        <strong>Playa</strong>
+                        <br>
+                        ${c.playa}
+                    </div>
+
+                    <div class="col-md-4">
+                        <strong>Capacidad</strong>
+                        <br>
+                        ${c.capacidad} personas
+                    </div>
+
+                    <div class="col-md-4">
+                        <strong>Precio</strong>
+                        <br>
+                        <span class="precio">
+                            ${q(c.precio_noche)}
+                        </span>
+                        / noche
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="card mb-3">
+
+            <div class="card-header fw-bold">
+                Descripción
+            </div>
+
+            <div class="card-body">
+
+                ${c.descripcion || '<span class="text-muted">Sin descripción.</span>'}
+
+            </div>
+
+        </div>
+
+        ${reglas}
+
+        <div class="card mb-3">
+
+            <div class="card-header fw-bold">
+                Avisos del propietario
+            </div>
+
+            <div class="card-body">
+
+                ${avisos}
+
+            </div>
+
+        </div>
+
+        ${fechas}
+
+        ${formReserva}
+
+    </div>
+    `;
+
+      new bootstrap.Modal(modalChalet).show();
+    }
+
+    async function reservar(chaletId) {
+      try {
+        const r = await API.post('/reservas', {
+          chalet_id: chaletId,
+          fecha_entrada: r_ent.value,
+          fecha_salida: r_sal.value,
+          huespedes: Number(r_hue.value),
+        });
+        aviso('msgReserva', `Reserva creada por ${q(r.monto_total)}. Continua en "Mis reservas" para subir el comprobante.`, 'success');
+        setTimeout(() => location.href = 'cliente.html', 1500);
+      } catch (e) { aviso('msgReserva', e.message); }
+    }
+
+    buscar();
+  </script>
+</body>
+
+</html>
