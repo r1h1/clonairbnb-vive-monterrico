@@ -1,4 +1,4 @@
-# AirChaletBI — Plataforma de gestión de reservas de chalets de playa
+# AirChaletBI / ViveMonterrico — Plataforma de gestión de reservas de chalets de playa
 
 Prototipo funcional desarrollado para la tesis *Desarrollo de una plataforma de analítica de datos para la gestión de reservas y predicción de tendencias de preferencias y demanda en chalets de playa*, aplicado a la operación de renta de chalets en las playas de Guatemala.
 
