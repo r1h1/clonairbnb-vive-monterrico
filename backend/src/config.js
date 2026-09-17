@@ -16,7 +16,7 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || null,
   pgHost: process.env.PGHOST || 'localhost',
   pgPort: parseInt(process.env.PGPORT || '5432', 10),
-  pgDatabase: process.env.PGDATABASE || 'airchaletbi',
+  pgDatabase: process.env.PGDATABASE || 'vivemonterrico',
   pgUser: process.env.PGUSER || 'postgres',
   pgPassword: process.env.PGPASSWORD || 'postgres',
   // Los proveedores en la nube casi siempre exigen SSL.

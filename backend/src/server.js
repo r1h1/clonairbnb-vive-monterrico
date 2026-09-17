@@ -11,6 +11,7 @@ import chaletsRoutes from './routes/chalets.routes.js';
 import reservasRoutes from './routes/reservas.routes.js';
 import duenoRoutes from './routes/dueno.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import empleadosRoutes from './routes/empleados.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +29,7 @@ app.use('/api/chalets', chaletsRoutes);
 app.use('/api/reservas', reservasRoutes);
 app.use('/api/dueno', duenoRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/empleados', empleadosRoutes);
 
 // 404 para rutas de API no encontradas.
 app.use('/api', (req, res) => res.status(404).json({ error: 'Recurso no encontrado' }));

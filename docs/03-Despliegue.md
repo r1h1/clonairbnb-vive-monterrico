@@ -14,7 +14,7 @@ Todo lo descrito aquí se sostiene con planes gratuitos, suficiente para los mes
 
 1. Cree una cuenta en [Neon](https://neon.tech) o [Supabase](https://supabase.com) y un nuevo proyecto de PostgreSQL.
 2. Copie la cadena de conexión que le entregan (formato `postgresql://usuario:clave@host/basededatos`).
-3. Conéctese con `psql`, DBeaver o la consola web del proveedor, y ejecute `database/01_AirChaletBI_Schema.sql`.
+3. Conéctese con `psql`, DBeaver o la consola web del proveedor, y ejecute `docs/01_ViveMonterrico_Schema.sql`.
 4. Verifique el resultado:
 
 ```sql
@@ -72,7 +72,7 @@ El backend crea el esquema automáticamente al iniciar (es idempotente), pero si
 
 ### 2.5 Comprobar
 
-Abra `https://SU_API.onrender.com/api/salud`. Debe responder `{ "ok": true, "servicio": "AirChaletBI API" }`.
+Abra `https://SU_API.onrender.com/api/salud`. Debe responder `{ "ok": true, "servicio": "ViveMonterrico API" }`.
 
 Si la respuesta es un error 500 al primer arranque, revise `DATABASE_URL` y `PGSSL`: casi siempre el problema está ahí.
 

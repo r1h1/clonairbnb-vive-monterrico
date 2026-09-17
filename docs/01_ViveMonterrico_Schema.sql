@@ -1,12 +1,12 @@
 /* ============================================================================
-   AirChaletBI - Script 01: Creacion de base de datos y esquema
+   ViveMonterrico - Script 01: Creacion de base de datos y esquema
    ----------------------------------------------------------------------------
    Motor: PostgreSQL 13 o superior.
    Proyecto: Plataforma de gestion de reservas de chalets de playa con
    analitica de oferta y demanda.
    Universidad Mariano Galvez de Guatemala - Ingenieria en Sistemas.
 
-   Este script crea la base de datos "airchaletbi" y sus 6 tablas, con
+   Este script crea la base de datos "vivemonterrico" y sus 6 tablas, con
    llaves foraneas, restricciones de integridad e indices. NO inserta datos:
    el sistema arranca completamente vacio, como corresponde a un despliegue
    real. Las cuentas (cliente, propietario, administrador) se crean desde
@@ -15,18 +15,18 @@
    ============================================================================ */
 
 -- Ejecutar esta primera instruccion conectado a la base "postgres" (o
--- cualquiera distinta de "airchaletbi"), NO dentro de una transaccion junto
+-- cualquiera distinta de "vivemonterrico"), NO dentro de una transaccion junto
 -- con el resto del script: CREATE DATABASE no puede ir dentro de BEGIN/COMMIT
 -- ni dentro de un bloque con otras sentencias en la misma ejecucion.
 
-CREATE DATABASE airchaletbi
+CREATE DATABASE vivemonterrico
   WITH ENCODING = 'UTF8';
 
 -- Cambia la conexion activa a la base recien creada. Este comando (\connect)
 -- es exclusivo del cliente psql; si usa otra herramienta (DBeaver, Azure
--- Data Studio, pgAdmin) simplemente reconectese manualmente a "airchaletbi"
+-- Data Studio, pgAdmin) simplemente reconectese manualmente a "vivemonterrico"
 -- despues de la linea CREATE DATABASE y continue ejecutando el resto.
-\connect airchaletbi
+\connect vivemonterrico
 
 -- =====================================================================
 -- EXTENSION: btree_gist
@@ -190,13 +190,52 @@ CREATE TABLE comentarios_dueno (
 );
 
 -- =====================================================================
+-- TABLA: empleados
+-- Personal del propietario (quien limpia la piscina, quien limpia la
+-- casa, etc.). No inician sesion en la plataforma: el propietario los
+-- registra como contactos y les avisa por WhatsApp cuando entra un
+-- inquilino, por eso no llevan cuenta ni rol propio en "usuarios".
+-- =====================================================================
+CREATE TABLE empleados (
+    id        SERIAL PRIMARY KEY,
+    dueno_id  INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    nombre    TEXT NOT NULL,
+    telefono  TEXT NOT NULL,
+    tipo      TEXT NOT NULL,                       -- texto libre: "Piscina", "Limpieza", etc.
+    activo    BOOLEAN NOT NULL DEFAULT true,
+    creado    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- =====================================================================
+-- TABLA: reserva_empleados
+-- Empleados asignados a una reserva especifica, para avisarles la fecha
+-- de check-in de esos inquilinos desde el calendario del propietario.
+-- "notificado" es un registro de mejor esfuerzo que el propio propietario
+-- marca al enviar el aviso por WhatsApp, no una confirmacion real de
+-- entrega del mensaje (la plataforma no envia WhatsApp automaticamente,
+-- solo arma el enlace con el mensaje precargado).
+-- =====================================================================
+CREATE TABLE reserva_empleados (
+    id            SERIAL PRIMARY KEY,
+    reserva_id    INTEGER NOT NULL REFERENCES reservas(id) ON DELETE CASCADE,
+    empleado_id   INTEGER NOT NULL REFERENCES empleados(id) ON DELETE CASCADE,
+    notificado    BOOLEAN NOT NULL DEFAULT false,
+    notificado_en TIMESTAMPTZ,
+    creado        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (reserva_id, empleado_id)
+);
+
+-- =====================================================================
 -- INDICES
 -- Aceleran las consultas mas frecuentes de la aplicacion: chalets de un
--- propietario, y reservas filtradas por chalet o por cliente.
+-- propietario, reservas filtradas por chalet o por cliente, empleados de
+-- un propietario y sus asignaciones a reservas.
 -- =====================================================================
-CREATE INDEX idx_chalets_dueno   ON chalets(dueno_id);
-CREATE INDEX idx_reservas_chalet ON reservas(chalet_id);
-CREATE INDEX idx_reservas_cli    ON reservas(cliente_id);
+CREATE INDEX idx_chalets_dueno         ON chalets(dueno_id);
+CREATE INDEX idx_reservas_chalet       ON reservas(chalet_id);
+CREATE INDEX idx_reservas_cli          ON reservas(cliente_id);
+CREATE INDEX idx_empleados_dueno       ON empleados(dueno_id);
+CREATE INDEX idx_reserva_empleados_res ON reserva_empleados(reserva_id);
 
 -- =====================================================================
 -- Fin del esquema. La base de datos queda lista, vacia, para que el
@@ -228,7 +267,7 @@ CREATE INDEX idx_reservas_cli    ON reservas(cliente_id);
        INSERT INTO usuarios (nombre, email, password, telefono, rol)
        VALUES (
          'Administrador',
-         'admin@airchaletbi.com',
+         'admin@vivemonterrico.com',
          '$2a$10$8K1p/a0dURXAf9NnpKC5Y.4T97VwYaOSjyq2SAAn0FQtEcU6X15gK',
          '00000000',
          'admin'

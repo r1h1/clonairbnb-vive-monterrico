@@ -140,4 +140,4 @@ La eliminación de un usuario elimina en cascada (`ON DELETE CASCADE`) sus chale
 
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
-| GET | `/api/salud` | Anónimo | `{ "ok": true, "servicio": "AirChaletBI API" }`, útil para monitoreo básico |
+| GET | `/api/salud` | Anónimo | `{ "ok": true, "servicio": "ViveMonterrico API" }`, útil para monitoreo básico |

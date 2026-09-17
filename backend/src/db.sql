@@ -1,5 +1,5 @@
 -- =====================================================================
--- AirChaletBI - Script de creacion de base de datos
+-- ViveMonterrico - Script de creacion de base de datos
 -- Motor: PostgreSQL 18
 -- Proyecto: Plataforma de gestion de reservas de chalets de playa
 -- =====================================================================
@@ -8,11 +8,11 @@
 -- forma automatica al iniciar; este archivo se entrega como respaldo
 -- =====================================================================
 
-CREATE DATABASE airchaletbi
+CREATE DATABASE vivemonterrico
   WITH ENCODING = 'UTF8';
 
--- A partir de aqui, conectarse a la base "airchaletbi" recien creada
--- (en psql: \c airchaletbi) y ejecutar el resto del script.
+-- A partir de aqui, conectarse a la base "vivemonterrico" recien creada
+-- (en psql: \c vivemonterrico) y ejecutar el resto del script.
 
 -- =====================================================================
 -- TABLA: usuarios
@@ -109,13 +109,48 @@ CREATE TABLE comentarios_dueno (
 );
 
 -- =====================================================================
--- INDICES
--- Aceleran las consultas mas frecuentes: chalets de un dueno, y
--- reservas por chalet o por cliente.
+-- TABLA: empleados
+-- Personal del dueno (quien limpia la piscina, quien limpia la casa,
+-- etc.). No inician sesion en la plataforma: son contactos a los que el
+-- dueno avisa por WhatsApp, por eso no llevan usuario/rol propio.
 -- =====================================================================
-CREATE INDEX idx_chalets_dueno   ON chalets(dueno_id);
-CREATE INDEX idx_reservas_chalet ON reservas(chalet_id);
-CREATE INDEX idx_reservas_cli    ON reservas(cliente_id);
+CREATE TABLE empleados (
+    id        SERIAL PRIMARY KEY,
+    dueno_id  INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    nombre    TEXT NOT NULL,
+    telefono  TEXT NOT NULL,
+    tipo      TEXT NOT NULL,                       -- texto libre: "Piscina", "Limpieza", etc.
+    activo    BOOLEAN NOT NULL DEFAULT true,
+    creado    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- =====================================================================
+-- TABLA: reserva_empleados
+-- Empleados asignados a una reserva, para avisarles la fecha de
+-- check-in. "notificado" es un registro de mejor esfuerzo que el propio
+-- dueno marca al enviar el aviso por WhatsApp, no una confirmacion real
+-- de entrega del mensaje.
+-- =====================================================================
+CREATE TABLE reserva_empleados (
+    id            SERIAL PRIMARY KEY,
+    reserva_id    INTEGER NOT NULL REFERENCES reservas(id) ON DELETE CASCADE,
+    empleado_id   INTEGER NOT NULL REFERENCES empleados(id) ON DELETE CASCADE,
+    notificado    BOOLEAN NOT NULL DEFAULT false,
+    notificado_en TIMESTAMPTZ,
+    creado        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (reserva_id, empleado_id)
+);
+
+-- =====================================================================
+-- INDICES
+-- Aceleran las consultas mas frecuentes: chalets de un dueno, reservas
+-- por chalet o por cliente, empleados de un dueno y sus asignaciones.
+-- =====================================================================
+CREATE INDEX idx_chalets_dueno         ON chalets(dueno_id);
+CREATE INDEX idx_reservas_chalet       ON reservas(chalet_id);
+CREATE INDEX idx_reservas_cli          ON reservas(cliente_id);
+CREATE INDEX idx_empleados_dueno       ON empleados(dueno_id);
+CREATE INDEX idx_reserva_empleados_res ON reserva_empleados(reserva_id);
 
 -- =====================================================================
 -- Fin del script

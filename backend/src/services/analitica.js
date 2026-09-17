@@ -1,4 +1,4 @@
-import { query } from '../db.js';
+import { query, queryUna } from '../db.js';
 import { nochesEntre } from './util.js';
 
 // Feriados nacionales de Guatemala con fecha fija (mes-dia). La Semana Santa
@@ -71,6 +71,64 @@ export async function demanda(duenoId = null) {
     chalets_top: chaletsTop,
     festivos,
     nota_semana_santa: 'La Semana Santa es movil y no se incluye en el conteo automatico de feriados.',
+  };
+}
+
+// Metricas de negocio adicionales para el dueno: ocupacion, ingresos,
+// ticket promedio, clientes recurrentes y tasa de aceptacion.
+export async function metricas(duenoId = null) {
+  const paramsChalets = [];
+  let sqlChalets = 'SELECT COUNT(*)::int c FROM chalets WHERE activo = true';
+  if (duenoId) {
+    paramsChalets.push(duenoId);
+    sqlChalets += ` AND dueno_id = $${paramsChalets.length}`;
+  }
+  const { c: chaletsActivos } = await queryUna(sqlChalets, paramsChalets);
+
+  const paramsReservas = [];
+  let sqlReservas = `SELECT r.fecha_entrada, r.fecha_salida, r.estado, r.cliente_id, r.monto_total
+             FROM reservas r JOIN chalets c ON c.id = r.chalet_id
+             WHERE r.estado IN ('aceptada','declinada')`;
+  if (duenoId) {
+    paramsReservas.push(duenoId);
+    sqlReservas += ` AND c.dueno_id = $${paramsReservas.length}`;
+  }
+  const reservas = (await query(sqlReservas, paramsReservas)).map((r) => ({ ...r, monto_total: Number(r.monto_total) }));
+
+  const aceptadas = reservas.filter((r) => r.estado === 'aceptada');
+  const declinadas = reservas.filter((r) => r.estado === 'declinada');
+
+  let nochesReservadas = 0;
+  let fechaMinima = null;
+  let fechaMaxima = null;
+  for (const r of aceptadas) {
+    nochesReservadas += nochesEntre(r.fecha_entrada, r.fecha_salida).length;
+    if (!fechaMinima || r.fecha_entrada < fechaMinima) fechaMinima = r.fecha_entrada;
+    if (!fechaMaxima || r.fecha_salida > fechaMaxima) fechaMaxima = r.fecha_salida;
+  }
+  let ocupacionPct = 0;
+  if (chaletsActivos > 0 && fechaMinima && fechaMaxima) {
+    const diasRango = Math.max(1, Math.round((new Date(fechaMaxima) - new Date(fechaMinima)) / 86400000));
+    ocupacionPct = Math.min(100, Math.round((nochesReservadas / (chaletsActivos * diasRango)) * 1000) / 10);
+  }
+
+  const ingresoConfirmado = aceptadas.reduce((s, r) => s + r.monto_total, 0);
+  const ticketPromedio = aceptadas.length ? Math.round((ingresoConfirmado / aceptadas.length) * 100) / 100 : 0;
+
+  const porCliente = {};
+  for (const r of aceptadas) porCliente[r.cliente_id] = (porCliente[r.cliente_id] || 0) + 1;
+  const clientesRecurrentes = Object.values(porCliente).filter((n) => n > 1).length;
+
+  const resueltas = aceptadas.length + declinadas.length;
+  const tasaAceptacion = resueltas ? Math.round((aceptadas.length / resueltas) * 1000) / 10 : 0;
+
+  return {
+    chalets_activos: chaletsActivos,
+    ocupacion_pct: ocupacionPct,
+    ingreso_confirmado: Math.round(ingresoConfirmado * 100) / 100,
+    ticket_promedio: ticketPromedio,
+    clientes_recurrentes: clientesRecurrentes,
+    tasa_aceptacion_pct: tasaAceptacion,
   };
 }
 

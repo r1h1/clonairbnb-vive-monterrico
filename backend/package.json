@@ -1,7 +1,7 @@
 {
-  "name": "airchaletbi-backend",
+  "name": "vivemonterrico-backend",
   "version": "1.0.0",
-  "description": "API de AirChaletBI - gestion de reservas de chalets de playa en Guatemala",
+  "description": "API de ViveMonterrico - gestion de reservas de chalets de playa en Guatemala",
   "type": "module",
   "main": "src/server.js",
   "engines": {

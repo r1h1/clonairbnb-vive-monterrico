@@ -36,9 +36,9 @@ async function main() {
   await query('TRUNCATE TABLE comentarios_dueno, reglas_precio, chalet_fotos, reservas, chalets, usuarios RESTART IDENTITY CASCADE');
 
   const credenciales = [
-    ['Administrador', 'admin@airchaletbi.com', 'admin123', '50200000000', 'admin'],
-    ['Jennifer Vasquez', 'jenny@airchaletbi.com', 'dueno123', '50255551111', 'dueno'],
-    ['Carlos Lopez', 'carlos@airchaletbi.com', 'dueno123', '50255552222', 'dueno'],
+    ['Administrador', 'admin@vivemonterrico.com', 'admin123', '50200000000', 'admin'],
+    ['Jennifer Vasquez', 'jenny@vivemonterrico.com', 'dueno123', '50255551111', 'dueno'],
+    ['Carlos Lopez', 'carlos@vivemonterrico.com', 'dueno123', '50255552222', 'dueno'],
     ['Juan Perez', 'juan@correo.com', 'cliente123', '50255553333', 'cliente'],
     ['Maria Gomez', 'maria@correo.com', 'cliente123', '50255554444', 'cliente'],
   ];
@@ -46,8 +46,8 @@ async function main() {
   for (const [nombre, email, password, telefono, rol] of credenciales) {
     ids[email] = await crearUsuario(nombre, email, password, telefono, rol);
   }
-  const dueno1Id = ids['jenny@airchaletbi.com'];
-  const dueno2Id = ids['carlos@airchaletbi.com'];
+  const dueno1Id = ids['jenny@vivemonterrico.com'];
+  const dueno2Id = ids['carlos@vivemonterrico.com'];
   const cli1Id = ids['juan@correo.com'];
   const cli2Id = ids['maria@correo.com'];
 
@@ -103,9 +103,9 @@ ni mostrarse en un entorno de produccion.
 
 | Rol      | Email                     | Contrasena  |
 |----------|---------------------------|-------------|
-| Admin    | admin@airchaletbi.com     | admin123    |
-| Dueno    | jenny@airchaletbi.com     | dueno123    |
-| Dueno    | carlos@airchaletbi.com    | dueno123    |
+| Admin    | admin@vivemonterrico.com  | admin123    |
+| Dueno    | jenny@vivemonterrico.com  | dueno123    |
+| Dueno    | carlos@vivemonterrico.com | dueno123    |
 | Cliente  | juan@correo.com           | cliente123  |
 | Cliente  | maria@correo.com          | cliente123  |
 `;

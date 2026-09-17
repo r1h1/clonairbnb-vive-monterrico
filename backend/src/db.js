@@ -103,8 +103,37 @@ export async function inicializarEsquema() {
       creado     TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
-    CREATE INDEX IF NOT EXISTS idx_chalets_dueno   ON chalets(dueno_id);
-    CREATE INDEX IF NOT EXISTS idx_reservas_chalet ON reservas(chalet_id);
-    CREATE INDEX IF NOT EXISTS idx_reservas_cli    ON reservas(cliente_id);
+    -- Personal del dueno (quien limpia la piscina, quien limpia la casa,
+    -- etc.). No inician sesion en la plataforma: son solo contactos a los
+    -- que el dueno avisa por WhatsApp, por eso no llevan usuario/rol.
+    CREATE TABLE IF NOT EXISTS empleados (
+      id        SERIAL PRIMARY KEY,
+      dueno_id  INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      nombre    TEXT NOT NULL,
+      telefono  TEXT NOT NULL,
+      tipo      TEXT NOT NULL,
+      activo    BOOLEAN NOT NULL DEFAULT true,
+      creado    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    -- Empleados asignados a una reserva (para avisarles la fecha de
+    -- check-in). "notificado" es un registro de mejor esfuerzo que el
+    -- propio dueno marca al enviar el WhatsApp, no una confirmacion de
+    -- entrega.
+    CREATE TABLE IF NOT EXISTS reserva_empleados (
+      id            SERIAL PRIMARY KEY,
+      reserva_id    INTEGER NOT NULL REFERENCES reservas(id) ON DELETE CASCADE,
+      empleado_id   INTEGER NOT NULL REFERENCES empleados(id) ON DELETE CASCADE,
+      notificado    BOOLEAN NOT NULL DEFAULT false,
+      notificado_en TIMESTAMPTZ,
+      creado        TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (reserva_id, empleado_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chalets_dueno          ON chalets(dueno_id);
+    CREATE INDEX IF NOT EXISTS idx_reservas_chalet        ON reservas(chalet_id);
+    CREATE INDEX IF NOT EXISTS idx_reservas_cli           ON reservas(cliente_id);
+    CREATE INDEX IF NOT EXISTS idx_empleados_dueno        ON empleados(dueno_id);
+    CREATE INDEX IF NOT EXISTS idx_reserva_empleados_res  ON reserva_empleados(reserva_id);
   `);
 }
