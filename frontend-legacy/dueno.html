@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel del propietario - ViveMonterrico</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/estilos.css" rel="stylesheet">
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container">
+    <h4 class="mb-3">Panel del propietario</h4>
+    <div id="msg"></div>
+
+    <ul class="nav nav-tabs mb-3" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dash">Resumen</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-chalets">Mis chalets</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-reservas">Reservas</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-analitica" onclick="cargarAnalitica()">Analitica</button></li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- RESUMEN -->
+      <div class="tab-pane fade show active" id="tab-dash">
+        <div class="row g-3 mb-3" id="stats"></div>
+
+        <div class="card stat-card mb-4">
+          <div class="card-body">
+            <h6 class="mb-2">Reporte descargable</h6>
+            <p class="small text-muted mb-2">Descarga en PDF el detalle de reservas de un rango de fechas: quien reservo, por cuanto, el estado y los ingresos confirmados.</p>
+            <div id="msgReporte"></div>
+            <div class="row g-2 align-items-end">
+              <div class="col-auto">
+                <label class="form-label small mb-1">Desde</label>
+                <input type="date" id="rep_desde" class="form-control form-control-sm">
+              </div>
+              <div class="col-auto">
+                <label class="form-label small mb-1">Hasta</label>
+                <input type="date" id="rep_hasta" class="form-control form-control-sm">
+              </div>
+              <div class="col-auto">
+                <button class="btn btn-acb btn-sm" onclick="descargarReporte()">Descargar PDF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h6>Quien reservo mis chalets</h6>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Cliente</th><th>Telefono</th><th>Chalet</th><th>Fechas</th><th>Estado</th><th>Monto</th></tr></thead>
+            <tbody id="reservantes"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CHALETS -->
+      <div class="tab-pane fade" id="tab-chalets">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0">Mis chalets</h6>
+          <button class="btn btn-acb btn-sm" onclick="abrirFormChalet()">+ Nuevo chalet</button>
+        </div>
+        <div id="misChalets" class="row g-3"></div>
+      </div>
+
+      <!-- RESERVAS -->
+      <div class="tab-pane fade" id="tab-reservas">
+        <h6 class="mb-3">Solicitudes y reservas de mis chalets</h6>
+        <div id="listaReservas" class="row g-3"></div>
+      </div>
+
+      <!-- ANALITICA -->
+      <div class="tab-pane fade" id="tab-analitica">
+        <div class="row g-4">
+          <div class="col-lg-6"><div class="card stat-card"><div class="card-body"><h6>Noches reservadas por mes</h6><canvas id="chMes"></canvas></div></div></div>
+          <div class="col-lg-6"><div class="card stat-card"><div class="card-body"><h6>Noches por dia de la semana</h6><canvas id="chDia"></canvas></div></div></div>
+          <div class="col-lg-6"><div class="card stat-card"><div class="card-body"><h6>Chalets mas reservados</h6><canvas id="chTop"></canvas></div></div></div>
+          <div class="col-lg-6"><div class="card stat-card"><div class="card-body"><h6>Proyeccion de demanda (estimado)</h6><canvas id="chProy"></canvas><p class="small text-muted mt-2 mb-0" id="notaProy"></p></div></div></div>
+          <div class="col-12"><div class="card stat-card"><div class="card-body"><h6>Demanda en fechas festivas</h6><div id="festivos"></div></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal formulario chalet -->
+  <div class="modal fade" id="modalChalet" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content" id="formChaletCont"></div></div></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/sesion.js"></script>
+  <script>
+    Sesion.exigir('dueno');
+    pintarNav();
+    let CHALETS = [];
+
+    // ---------- Resumen ----------
+    async function cargarDash() {
+      const d = await API.get('/dueno/dashboard');
+      document.getElementById('stats').innerHTML = [
+        ['Chalets creados', d.chalets_creados],
+        ['Con reserva activa', d.chalets_reservados],
+        ['Disponibles', d.chalets_disponibles],
+        ['Reservas pendientes', d.reservas_pendientes],
+      ].map(([t, n]) => `<div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body text-center"><div class="num">${n}</div><div class="small text-muted">${t}</div></div></div></div>`).join('');
+      document.getElementById('reservantes').innerHTML = d.reservantes.map(r => `
+        <tr>
+          <td>${r.cliente}</td>
+          <td><a href="https://wa.me/${(r.telefono||'').replace(/\D/g,'')}" target="_blank">${r.telefono}</a></td>
+          <td>${r.chalet}</td>
+          <td class="small">${r.fecha_entrada} → ${r.fecha_salida}</td>
+          <td>${badgeEstado(r.estado)}</td>
+          <td>${q(r.monto_total)}</td>
+        </tr>`).join('') || '<tr><td colspan="6" class="text-muted">Sin reservas todavia.</td></tr>';
+    }
+
+    // ---------- Chalets ----------
+    async function cargarChalets() {
+      CHALETS = await API.get('/chalets/mios');
+      document.getElementById('misChalets').innerHTML = CHALETS.map(pintarChalet).join('') ||
+        '<p class="text-muted">Aun no tienes chalets. Crea el primero.</p>';
+    }
+
+    function pintarChalet(c) {
+      const reglas = c.reglas_precio.map(r => `<li class="small">+${r.porcentaje}% ${r.fecha_inicio} a ${r.fecha_fin} <a href="#" class="text-danger" onclick="borrarRegla(${r.id});return false">quitar</a></li>`).join('');
+      return `
+        <div class="col-md-6">
+          <div class="card stat-card h-100"><div class="card-body">
+            <div class="d-flex justify-content-between">
+              <h6 class="mb-1">${c.nombre}</h6>
+              <span class="precio">${q(c.precio_noche)}</span>
+            </div>
+            <div class="small text-muted mb-2">📍 ${c.playa} · cap. ${c.capacidad} · ${c.fotos.length}/5 fotos ${c.activo ? '' : '· <span class="text-danger">inactivo</span>'}</div>
+            <div class="d-flex gap-1 mb-2 overflow-auto">${c.fotos.length ? c.fotos.map(f => `<img src="${f}" style="height:56px;border-radius:6px">`).join('') : cajaFoto(null, 56, '80px', 6)}</div>
+            <div class="mb-2">
+              <label class="small">Subir fotos (max 5)</label>
+              <div class="input-group input-group-sm">
+                <input type="file" accept="image/*" multiple id="fotos_${c.id}" class="form-control">
+                <button class="btn btn-outline-acb" onclick="subirFotos(${c.id})">Subir</button>
+              </div>
+            </div>
+            ${reglas ? `<ul class="mb-2">${reglas}</ul>` : ''}
+            <div class="accordion accordion-flush" id="acc_${c.id}">
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-acb btn-sm" onclick="abrirFormChalet(${c.id})">Editar</button>
+                <button class="btn btn-outline-acb btn-sm" onclick="toggleRegla(${c.id})">Regla precio</button>
+                <button class="btn btn-outline-acb btn-sm" onclick="toggleAviso(${c.id})">Aviso</button>
+                <button class="btn btn-outline-danger btn-sm" onclick="borrarChalet(${c.id})">Eliminar</button>
+              </div>
+              <div id="regla_${c.id}" class="mt-2 d-none">
+                <div class="row g-1">
+                  <div class="col"><input type="date" id="ri_${c.id}" class="form-control form-control-sm"></div>
+                  <div class="col"><input type="date" id="rf_${c.id}" class="form-control form-control-sm"></div>
+                  <div class="col-3"><input type="number" id="rp_${c.id}" class="form-control form-control-sm" placeholder="%"></div>
+                  <div class="col-auto"><button class="btn btn-acb btn-sm" onclick="agregarRegla(${c.id})">+</button></div>
+                </div>
+              </div>
+              <div id="aviso_${c.id}" class="mt-2 d-none">
+                <div class="input-group input-group-sm">
+                  <input id="av_${c.id}" class="form-control" placeholder="Ej: de 7 a 13h no habra luz por mantenimiento">
+                  <button class="btn btn-acb" onclick="agregarAviso(${c.id})">Publicar aviso</button>
+                </div>
+                <div id="avisos_${c.id}" class="mt-1"></div>
+              </div>
+            </div>
+          </div></div>
+        </div>`;
+    }
+
+    const toggleRegla = id => document.getElementById('regla_' + id).classList.toggle('d-none');
+    async function toggleAviso(id) {
+      const box = document.getElementById('aviso_' + id);
+      box.classList.toggle('d-none');
+      if (!box.classList.contains('d-none')) {
+        const cs = await API.get('/chalets/' + id + '/comentarios');
+        document.getElementById('avisos_' + id).innerHTML = cs.map(x => `<div class="aviso p-1 px-2 small mt-1">${x.mensaje} <a href="#" class="text-danger" onclick="borrarAviso(${x.id},${id});return false">x</a></div>`).join('');
+      }
+    }
+
+    function abrirFormChalet(id) {
+      const c = id ? CHALETS.find(x => x.id === id) : {};
+      document.getElementById('formChaletCont').innerHTML = `
+        <div class="modal-header"><h5 class="modal-title">${id ? 'Editar' : 'Nuevo'} chalet</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div id="msgForm"></div>
+          <div class="row g-2">
+            <div class="col-md-6"><label class="form-label small">Nombre</label><input id="c_nombre" class="form-control" value="${c.nombre||''}"></div>
+            <div class="col-md-6"><label class="form-label small">Playa</label><input id="c_playa" class="form-control" value="${c.playa||''}"></div>
+            <div class="col-md-4"><label class="form-label small">Precio/noche (Q)</label><input id="c_precio" type="number" class="form-control" value="${c.precio_noche||''}"></div>
+            <div class="col-md-4"><label class="form-label small">Capacidad</label><input id="c_cap" type="number" class="form-control" value="${c.capacidad||''}"></div>
+            <div class="col-md-4 d-flex align-items-end">${id?`<div class="form-check"><input class="form-check-input" type="checkbox" id="c_activo" ${c.activo?'checked':''}><label class="form-check-label small">Activo</label></div>`:''}</div>
+            <div class="col-12"><label class="form-label small">Descripcion</label><textarea id="c_desc" class="form-control" rows="2">${c.descripcion||''}</textarea></div>
+            <div class="col-md-6"><label class="form-label small">Direccion completa (privada)</label><input id="c_dir" class="form-control" value="${c.direccion_completa||''}"></div>
+            <div class="col-md-6"><label class="form-label small">Instrucciones check-in (privadas)</label><input id="c_check" class="form-control" value="${c.instrucciones_checkin||''}"></div>
+          </div>
+          <p class="small text-muted mt-2">La direccion e instrucciones solo se muestran al cliente cuando aceptas su reserva.</p>
+        </div>
+        <div class="modal-footer"><button class="btn btn-acb" onclick="guardarChalet(${id||0})">Guardar</button></div>`;
+      new bootstrap.Modal(document.getElementById('modalChalet')).show();
+    }
+
+    async function guardarChalet(id) {
+      const body = {
+        nombre: c_nombre.value, playa: c_playa.value, descripcion: c_desc.value,
+        precio_noche: Number(c_precio.value), capacidad: Number(c_cap.value),
+        direccion_completa: c_dir.value, instrucciones_checkin: c_check.value,
+      };
+      if (id) body.activo = document.getElementById('c_activo')?.checked ? 1 : 0;
+      try {
+        if (id) await API.put('/chalets/' + id, body); else await API.post('/chalets', body);
+        bootstrap.Modal.getInstance(document.getElementById('modalChalet')).hide();
+        aviso('msg', 'Chalet guardado', 'success'); cargarChalets(); cargarDash();
+      } catch (e) { aviso('msgForm', e.message); }
+    }
+
+    async function borrarChalet(id) {
+      if (!confirm('Eliminar este chalet y sus reservas?')) return;
+      try { await API.del('/chalets/' + id); cargarChalets(); cargarDash(); } catch (e) { aviso('msg', e.message); }
+    }
+    async function subirFotos(id) {
+      const inp = document.getElementById('fotos_' + id);
+      if (!inp.files.length) return;
+      const fd = new FormData(); [...inp.files].forEach(f => fd.append('fotos', f));
+      try { await API.upload('/chalets/' + id + '/fotos', fd); cargarChalets(); } catch (e) { aviso('msg', e.message); }
+    }
+    async function agregarRegla(id) {
+      try {
+        await API.post('/chalets/' + id + '/reglas', { fecha_inicio: document.getElementById('ri_'+id).value, fecha_fin: document.getElementById('rf_'+id).value, porcentaje: Number(document.getElementById('rp_'+id).value) });
+        cargarChalets();
+      } catch (e) { aviso('msg', e.message); }
+    }
+    async function borrarRegla(id) { try { await API.del('/chalets/reglas/' + id); cargarChalets(); } catch (e) { aviso('msg', e.message); } }
+    async function agregarAviso(id) {
+      const v = document.getElementById('av_' + id).value;
+      try { await API.post('/chalets/' + id + '/comentarios', { mensaje: v }); document.getElementById('av_'+id).value=''; toggleAviso(id); toggleAviso(id); } catch (e) { aviso('msg', e.message); }
+    }
+    async function borrarAviso(cid, chaletId) { try { await API.del('/chalets/comentarios/' + cid); toggleAviso(chaletId); toggleAviso(chaletId); } catch (e) { aviso('msg', e.message); } }
+
+    // ---------- Reservas ----------
+    async function cargarReservas() {
+      const rs = await API.get('/reservas/dueno');
+      document.getElementById('listaReservas').innerHTML = rs.map(r => {
+        let acciones = '';
+        if (r.estado === 'pendiente') {
+          acciones = `
+            <div class="mt-2 d-flex gap-2 flex-wrap">
+              <button class="btn btn-acb btn-sm" onclick="aceptar(${r.id})">Aceptar</button>
+              <button class="btn btn-outline-danger btn-sm" onclick="declinar(${r.id})">Declinar</button>
+            </div>`;
+        }
+        return `<div class="col-md-6"><div class="card stat-card h-100"><div class="card-body">
+          <div class="d-flex justify-content-between"><h6 class="mb-1">${r.chalet_nombre}</h6>${badgeEstado(r.estado)}</div>
+          <div class="small text-muted">${r.cliente_nombre} · <a href="https://wa.me/${(r.cliente_telefono||'').replace(/\D/g,'')}" target="_blank">${r.cliente_telefono}</a></div>
+          <div class="small">${r.fecha_entrada} → ${r.fecha_salida} · ${r.huespedes} huespedes · <span class="precio">${q(r.monto_total)}</span></div>
+          ${r.comprobante ? `<a href="${r.comprobante}" target="_blank" class="small">Ver comprobante</a>` : '<span class="small text-muted">Sin comprobante aun</span>'}
+          ${r.motivo_rechazo ? `<div class="small text-danger">Motivo: ${r.motivo_rechazo}</div>` : ''}
+          ${acciones}
+        </div></div></div>`;
+      }).join('') || '<p class="text-muted">Sin reservas.</p>';
+    }
+    async function aceptar(id) { try { await API.put('/reservas/' + id + '/aceptar'); cargarReservas(); cargarDash(); } catch (e) { aviso('msg', e.message); } }
+    async function declinar(id) {
+      const motivo = prompt('Motivo del rechazo:');
+      if (!motivo) return;
+      try { await API.put('/reservas/' + id + '/declinar', { motivo }); cargarReservas(); cargarDash(); } catch (e) { aviso('msg', e.message); }
+    }
+
+    // ---------- Analitica ----------
+    let charts = {};
+    async function cargarAnalitica() {
+      const d = await API.get('/dueno/analitica/demanda');
+      const p = await API.get('/dueno/analitica/proyeccion');
+      const mk = (id, cfg) => { if (charts[id]) charts[id].destroy(); charts[id] = new Chart(document.getElementById(id), cfg); };
+      const color = '#0f9b8e';
+      mk('chMes', { type: 'bar', data: { labels: d.por_mes.map(m=>m.mes), datasets: [{ label:'Noches', data: d.por_mes.map(m=>m.noches), backgroundColor: color }] }, options:{plugins:{legend:{display:false}}} });
+      mk('chDia', { type: 'bar', data: { labels: d.por_dia_semana.map(x=>x.dia), datasets: [{ label:'Noches', data: d.por_dia_semana.map(x=>x.noches), backgroundColor:'#16a34a' }] }, options:{plugins:{legend:{display:false}}} });
+      mk('chTop', { type: 'doughnut', data: { labels: d.chalets_top.map(x=>x.nombre), datasets: [{ data: d.chalets_top.map(x=>x.reservas), backgroundColor:['#0f9b8e','#16a34a','#f59e0b','#6366f1','#ec4899'] }] } });
+      mk('chProy', { type: 'line', data: { labels: p.proyeccion.map(x=>x.mes), datasets: [
+        { label:'Historico', data: p.proyeccion.map(x=>x.historico), borderColor: color, tension:.3 },
+        { label:'Estimado', data: p.proyeccion.map(x=>x.estimado), borderColor:'#f59e0b', borderDash:[5,5], tension:.3 }
+      ] } });
+      document.getElementById('notaProy').textContent = p.metodo + (p.mes_pico ? ' · Mes pico: ' + p.mes_pico : '');
+      document.getElementById('festivos').innerHTML = d.festivos.length
+        ? d.festivos.map(f => `<span class="badge bg-light text-dark border me-1 mb-1">${f.nombre}: ${f.noches} noche(s)</span>`).join('') + `<p class="small text-muted mt-2 mb-0">${d.nota_semana_santa}</p>`
+        : '<span class="text-muted small">Sin reservas en fechas festivas.</span>';
+    }
+
+    async function descargarReporte() {
+      const desde = document.getElementById('rep_desde').value;
+      const hasta = document.getElementById('rep_hasta').value;
+      if (!desde || !hasta) return aviso('msgReporte', 'Selecciona el rango de fechas (desde y hasta)');
+      if (desde > hasta) return aviso('msgReporte', 'La fecha "desde" no puede ser posterior a "hasta"');
+      try {
+        const res = await fetch(window.API_BASE + `/dueno/reporte.pdf?desde=${desde}&hasta=${hasta}`, {
+          headers: { Authorization: 'Bearer ' + API.token() },
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error((data && data.error) || 'No se pudo generar el reporte');
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reporte-ViveMonterrico-${desde}-a-${hasta}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) { aviso('msgReporte', e.message); }
+    }
+
+    cargarDash(); cargarChalets(); cargarReservas();
+  </script>
+</body>
+</html>

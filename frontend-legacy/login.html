@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Iniciar sesión - ViveMonterrico</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/estilos.css" rel="stylesheet">
+</head>
+
+<body>
+
+  <div id="nav"></div>
+
+  <div class="container py-5">
+
+    <div class="row justify-content-center">
+
+      <div class="col-md-6 col-lg-5">
+
+        <div class="text-center mb-4">
+
+          <h2 class="fw-bold mb-2">
+            Bienvenido a ViveMonterrico
+          </h2>
+
+          <p class="text-muted mb-0">
+            Inicia sesión para administrar tus reservas y disfrutar de nuestros chalets.
+          </p>
+
+        </div>
+
+        <div class="card border-0 shadow rounded-4">
+
+          <div class="card-body p-4">
+
+            <h4 class="fw-bold mb-4">
+              Iniciar sesión
+            </h4>
+
+            <div id="msg"></div>
+
+            <div class="mb-3">
+
+              <label class="form-label">
+                Correo electrónico
+              </label>
+
+              <input
+                id="email"
+                type="email"
+                class="form-control"
+                placeholder="">
+
+            </div>
+
+            <div class="mb-4">
+
+              <label class="form-label">
+                Contraseña
+              </label>
+
+              <input
+                id="password"
+                type="password"
+                class="form-control"
+                placeholder="">
+
+            </div>
+
+            <button
+              class="btn btn-acb w-100 py-2"
+              onclick="entrar()">
+
+              Iniciar sesión
+
+            </button>
+
+            <hr>
+
+            <div class="text-center">
+
+              <small class="text-muted">
+
+                ¿Aún no tienes una cuenta?
+
+              </small>
+
+              <br>
+
+              <a
+                href="registro.html"
+                class="text-decoration-none fw-semibold">
+
+                Crear una cuenta
+
+              </a>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/sesion.js"></script>
+
+  <script>
+
+    pintarNav();
+
+    async function entrar() {
+
+      try {
+
+        const { usuario, token } = await API.post('/auth/login', {
+          email: email.value,
+          password: password.value
+        });
+
+        Sesion.guardar(usuario, token);
+
+        location.href =
+          usuario.rol === 'cliente'
+            ? 'cliente.html'
+            : usuario.rol === 'dueno'
+              ? 'dueno.html'
+              : 'admin.html';
+
+      } catch (e) {
+
+        aviso('msg', e.message);
+
+      }
+
+    }
+
+    document.getElementById('password').addEventListener('keydown', e => {
+
+      if (e.key === 'Enter') {
+
+        entrar();
+
+      }
+
+    });
+
+  </script>
+
+</body>
+
+</html>

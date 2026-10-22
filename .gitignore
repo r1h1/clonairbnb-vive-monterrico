@@ -1,0 +1,7 @@
+node_modules/
+.env
+backend/SEED-LOCAL.md
+backend/uploads/chalets/*
+backend/uploads/comprobantes/*
+!backend/uploads/**/.gitkeep
+.DS_Store

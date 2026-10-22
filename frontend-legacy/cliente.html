@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mis reservas - ViveMonterrico</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/estilos.css" rel="stylesheet">
+</head>
+
+<body>
+    <div id="nav"></div>
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+
+            <div>
+
+                <h3 class="fw-bold mb-1">
+          Mis reservas
+        </h3>
+
+                <small class="text-muted">
+          Administra tus reservas y el estado de cada una.
+        </small>
+
+            </div>
+
+            <a href="index.html" class="btn btn-acb">
+        Buscar chalets
+      </a>
+
+        </div>
+        <div id="msg"></div>
+        <div id="lista" class="row g-3"></div>
+        <div id="vacio" class="text-center text-muted d-none py-5">
+
+            <h4 class="mb-3">
+
+        No tienes reservas todavía
+
+      </h4>
+
+            <p>
+
+                Explora nuestros chalets y encuentra el lugar ideal para tus vacaciones.
+
+            </p>
+
+            <a href="index.html" class="btn btn-acb">
+
+        Explorar chalets
+
+      </a>
+
+        </div>
+        <footer class="text-center text-muted small py-5">
+
+            ViveMonterrico · Panel del cliente
+
+        </footer>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/sesion.js"></script>
+    <script>
+        Sesion.exigir('cliente');
+        pintarNav();
+    
+        async function cargar() {
+          const rs = await API.get('/reservas/mias');
+          document.getElementById('vacio').classList.toggle('d-none', rs.length > 0);
+          document.getElementById('lista').innerHTML = rs.map(pintar).join('');
+        }
+    
+        function pintar(r) {
+    
+          let extra = '';
+    
+          if (r.estado === 'pendiente') {
+    
+            extra = `
+          <hr>
+    
+          <label class="form-label small">
+            Comprobante de pago
+          </label>
+    
+          <div class="input-group">
+    
+            <input
+              type="file"
+              accept="image/*"
+              id="file_${r.id}"
+              class="form-control">
+    
+            <button
+              class="btn btn-outline-acb"
+              onclick="subir(${r.id})">
+    
+              Enviar
+    
+            </button>
+    
+          </div>
+    
+          <small class="text-muted d-block mt-2">
+    
+            ${r.comprobante
+                ? 'Comprobante enviado. Esperando confirmación del propietario.'
+                : 'Sube el comprobante para continuar con la reserva.'
+              }
+    
+          </small>
+    
+          <button
+            class="btn btn-link text-danger p-0 mt-3"
+            onclick="cancelar(${r.id})">
+    
+            Cancelar reserva
+    
+          </button>
+        `;
+    
+          }
+    
+          else if (r.estado === 'aceptada') {
+    
+            extra = `
+          <hr>
+    
+          <div class="alert alert-success mb-0">
+    
+            <strong>Reserva confirmada</strong>
+    
+            <div class="mt-2">
+    
+              <strong>Dirección</strong><br>
+    
+              ${r.direccion_completa || '-'}
+    
+            </div>
+    
+            <div class="mt-2">
+    
+              <strong>Check-in</strong><br>
+    
+              ${r.instrucciones_checkin || '-'}
+    
+            </div>
+    
+          </div>
+        `;
+    
+          }
+    
+          else if (r.estado === 'declinada') {
+    
+            extra = `
+          <hr>
+    
+          <div class="alert alert-danger mb-0">
+    
+            <strong>Reserva rechazada</strong>
+    
+            <br>
+    
+            ${r.motivo_rechazo || 'Sin motivo'}
+    
+          </div>
+        `;
+    
+          }
+    
+          return `
+    
+    <div class="col-md-6 col-lg-4">
+    
+    <div class="card shadow-sm border-0 rounded-4 h-100">
+    
+    <div class="card-body d-flex flex-column">
+    
+    <div class="d-flex justify-content-between align-items-start">
+    
+    <div>
+    
+    <h5 class="mb-1">
+    
+    ${r.chalet_nombre}
+    
+    </h5>
+    
+    <div class="small text-muted">
+    
+    ${r.playa}
+    
+    </div>
+    
+    </div>
+    
+    ${badgeEstado(r.estado)}
+    
+    </div>
+    
+    <hr>
+    
+    <div class="row small">
+    
+    <div class="col-6 mb-2">
+    
+    <strong>Entrada</strong><br>
+    
+    ${r.fecha_entrada}
+    
+    </div>
+    
+    <div class="col-6 mb-2">
+    
+    <strong>Salida</strong><br>
+    
+    ${r.fecha_salida}
+    
+    </div>
+    
+    <div class="col-6">
+    
+    <strong>Huéspedes</strong><br>
+    
+    ${r.huespedes}
+    
+    </div>
+    
+    <div class="col-6">
+    
+    <strong>Total</strong><br>
+    
+    <span class="precio fs-5">
+    
+    ${q(r.monto_total)}
+    
+    </span>
+    
+    </div>
+    
+    </div>
+    
+    ${extra}
+    
+    </div>
+    
+    </div>
+    
+    </div>
+    
+    `;
+    
+        }
+    
+        async function subir(id) {
+          const input = document.getElementById('file_' + id);
+          if (!input.files.length) return aviso('msg', 'Selecciona una imagen del comprobante');
+          const fd = new FormData();
+          fd.append('comprobante', input.files[0]);
+          try { await API.upload('/reservas/' + id + '/comprobante', fd); aviso('msg', 'Comprobante enviado', 'success'); cargar(); }
+          catch (e) { aviso('msg', e.message); }
+        }
+    
+        async function cancelar(id) {
+          if (!confirm('Cancelar esta reserva?')) return;
+          try { await API.put('/reservas/' + id + '/cancelar'); cargar(); }
+          catch (e) { aviso('msg', e.message); }
+        }
+    
+        cargar();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,50 @@
+:root {
+  --acb-primary: #0f9b8e;
+  --acb-primary-dark: #0b7d72;
+  --acb-accent: #16a34a;
+  --acb-ink: #1f2d3d;
+  --acb-muted: #6b7a8d;
+  --acb-bg: #f6f8fa;
+}
+body { background: var(--acb-bg); color: var(--acb-ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+.navbar-brand { font-weight: 700; letter-spacing: -.3px; }
+.navbar-brand span { color: var(--acb-primary); }
+.text-primary, a.text-primary { color: var(--acb-primary) !important; }
+
+.btn-acb { background: var(--acb-primary); border-color: var(--acb-primary); color: #fff; }
+.btn-acb:hover { background: var(--acb-primary-dark); border-color: var(--acb-primary-dark); color: #fff; }
+.btn-outline-acb { color: var(--acb-primary); border-color: var(--acb-primary); }
+.btn-outline-acb:hover { background: var(--acb-primary); color: #fff; }
+
+.hero {
+  background: linear-gradient(rgba(11,60,66,.55), rgba(11,60,66,.55)),
+    url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=60') center/cover;
+  color: #fff; border-radius: 14px; padding: 3rem 2rem;
+}
+.hero h1 { font-weight: 800; }
+.hero .brand-word { color: #7fe3d9; font-style: italic; }
+
+.chalet-card { border: none; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 18px rgba(31,45,61,.06); transition: transform .15s; background:#fff; }
+.chalet-card:hover { transform: translateY(-3px); }
+.chalet-card img { height: 190px; object-fit: cover; width: 100%; background:#e9eef2; }
+.precio { color: var(--acb-primary); font-weight: 700; font-size: 1.25rem; }
+
+.foto-placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem;
+  background: linear-gradient(135deg,#e9eef2,#dde5ea); color: var(--acb-muted); font-size: .72rem;
+  width: 100%; flex-shrink: 0;
+}
+.foto-placeholder svg { opacity: .55; }
+
+.badge-estado { font-weight: 600; }
+.estado-pendiente { background: #fef3c7; color: #92600a; }
+.estado-aceptada { background: #dcfce7; color: #166534; }
+.estado-declinada { background: #fee2e2; color: #991b1b; }
+.estado-cancelada { background: #e5e7eb; color: #374151; }
+
+.stat-card { border-radius: 14px; border: none; box-shadow: 0 4px 14px rgba(31,45,61,.05); }
+.stat-card .num { font-size: 2rem; font-weight: 800; color: var(--acb-primary); }
+.aviso { background:#eef7ff; border-left: 4px solid var(--acb-primary); border-radius: 8px; }
+.dia-ocupado { color:#b91c1c; }
+footer { color: var(--acb-muted); }
