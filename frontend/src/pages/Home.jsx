@@ -22,6 +22,8 @@ export default function Home() {
   const [comentarios, setComentarios] = useState([]);
   const [formReserva, setFormReserva] = useState({ entrada: '', salida: '', huespedes: 2 });
   const [msgReserva, setMsgReserva] = useState(null);
+  const [enviando, setEnviando] = useState(false);
+  const hoy = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD en hora local
 
   async function buscar() {
     try {
@@ -57,6 +59,14 @@ export default function Home() {
   }
 
   async function reservar() {
+    if (enviando) return; // evita enviar dos veces con doble clic
+    if (!formReserva.entrada || !formReserva.salida) {
+      return setMsgReserva({ tipo: 'danger', texto: 'Selecciona la fecha de entrada y de salida.' });
+    }
+    if (formReserva.salida <= formReserva.entrada) {
+      return setMsgReserva({ tipo: 'danger', texto: 'La salida debe ser posterior a la entrada.' });
+    }
+    setEnviando(true);
     try {
       const r = await API.post('/reservas', {
         chalet_id: detalle.id,
@@ -68,6 +78,13 @@ export default function Home() {
       setTimeout(() => navigate('/cliente'), 1500);
     } catch (e) {
       setMsgReserva({ tipo: 'danger', texto: e.message });
+      // Si alguien reservo primero, refresca las fechas ocupadas del chalet.
+      try {
+        const actualizado = await API.get('/chalets/' + detalle.id);
+        setDetalle(actualizado);
+      } catch { /* se mantiene la informacion actual */ }
+    } finally {
+      setEnviando(false);
     }
   }
 
@@ -85,11 +102,11 @@ export default function Home() {
           <div className="row g-2 align-items-end">
             <div className="col-md-3">
               <label className="form-label small mb-1">Fecha de entrada</label>
-              <input type="date" className="form-control" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
+              <input type="date" className="form-control" min={hoy} value={entrada} onChange={(e) => setEntrada(e.target.value)} />
             </div>
             <div className="col-md-3">
               <label className="form-label small mb-1">Fecha de salida</label>
-              <input type="date" className="form-control" value={salida} onChange={(e) => setSalida(e.target.value)} />
+              <input type="date" className="form-control" min={entrada || hoy} value={salida} onChange={(e) => setSalida(e.target.value)} />
             </div>
             <div className="col-md-2">
               <label className="form-label small mb-1">Huespedes</label>
@@ -219,18 +236,18 @@ export default function Home() {
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label">Fecha de entrada</label>
-                        <input type="date" className="form-control" value={formReserva.entrada} onChange={(e) => setFormReserva((f) => ({ ...f, entrada: e.target.value }))} />
+                        <input type="date" className="form-control" min={hoy} value={formReserva.entrada} onChange={(e) => setFormReserva((f) => ({ ...f, entrada: e.target.value, salida: f.salida && f.salida <= e.target.value ? '' : f.salida }))} />
                       </div>
                       <div className="col-md-6">
                         <label className="form-label">Fecha de salida</label>
-                        <input type="date" className="form-control" value={formReserva.salida} onChange={(e) => setFormReserva((f) => ({ ...f, salida: e.target.value }))} />
+                        <input type="date" className="form-control" min={formReserva.entrada || hoy} value={formReserva.salida} onChange={(e) => setFormReserva((f) => ({ ...f, salida: e.target.value }))} />
                       </div>
                       <div className="col-md-6">
                         <label className="form-label">Huespedes</label>
                         <input type="number" min="1" max={detalle.capacidad} className="form-control" value={formReserva.huespedes} onChange={(e) => setFormReserva((f) => ({ ...f, huespedes: e.target.value }))} />
                       </div>
                       <div className="col-12">
-                        <button className="btn btn-acb w-100" onClick={reservar}>Solicitar reserva</button>
+                        <button className="btn btn-acb w-100" onClick={reservar} disabled={enviando}>{enviando ? 'Enviando solicitud…' : 'Solicitar reserva'}</button>
                       </div>
                     </div>
                     <hr />

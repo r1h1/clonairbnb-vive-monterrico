@@ -143,6 +143,22 @@ Este es un prototipo funcional desarrollado con fines académicos, aplicado a un
 
 ---
 
+## 8.1 Pruebas automatizadas
+
+El backend incluye pruebas de integración (`backend/test/`) que levantan la API real contra PostgreSQL, crean sus propios usuarios de prueba y los eliminan al terminar:
+
+```bash
+cd backend
+npm test
+```
+
+- `reservas.test.js` — **concurrencia**: dos (y cinco) clientes reservando las mismas fechas al mismo tiempo; solo uno obtiene `201`, el resto `409`. El control se hace con una transacción y un `pg_advisory_xact_lock` por chalet.
+- `permisos.test.js` — **autorización por rol**: matriz de accesos que deben ser rechazados (cliente → rutas de dueño/admin, dueño → rutas de admin, dueño → recursos de otro dueño, cliente → reservas de otro cliente, token falso, registro como admin, dirección del chalet oculta hasta aceptar la reserva).
+
+Roles del sistema: `cliente`, `dueno` y `admin` (el admin solo se crea por seed).
+
+---
+
 ## 9. Historial de versiones
 
 | Versión | Contenido |

@@ -34,6 +34,26 @@ export async function queryUna(texto, params = []) {
   return filas[0] || null;
 }
 
+// Ejecuta `fn(cliente)` dentro de una transaccion. Si lanza, hace ROLLBACK.
+// `cliente.query(texto, params)` devuelve directamente las filas.
+export async function conTransaccion(fn) {
+  const conn = await pool.connect();
+  const ejecutor = {
+    query: async (texto, params = []) => (await conn.query(texto, params)).rows,
+  };
+  try {
+    await conn.query('BEGIN');
+    const resultado = await fn(ejecutor);
+    await conn.query('COMMIT');
+    return resultado;
+  } catch (e) {
+    await conn.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
 // Esquema. Se crea solo si no existe, asi el arranque es idempotente.
 // Nota: las fechas de reserva/reglas se guardan como TEXT ('YYYY-MM-DD') en
 // lugar de DATE a proposito, para trabajar siempre con el mismo string que
@@ -136,4 +156,4 @@ export async function inicializarEsquema() {
     CREATE INDEX IF NOT EXISTS idx_empleados_dueno        ON empleados(dueno_id);
     CREATE INDEX IF NOT EXISTS idx_reserva_empleados_res  ON reserva_empleados(reserva_id);
   `);
-}
+}

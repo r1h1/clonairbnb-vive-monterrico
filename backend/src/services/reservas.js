@@ -1,4 +1,4 @@
-import { query, queryUna } from '../db.js';
+import { query, queryUna, conTransaccion } from '../db.js';
 import { config } from '../config.js';
 import { ErrorApp, esFecha, calcularTotal } from './util.js';
 import { obtenerCrudo, estaDisponible, verificarDueno } from './chalets.js';
@@ -51,17 +51,26 @@ export async function crear(clienteId, { chalet_id, fecha_entrada, fecha_salida,
   if (huespedes > chalet.capacidad) {
     throw new ErrorApp(`El chalet admite maximo ${chalet.capacidad} huespedes`);
   }
-  if (!(await estaDisponible(chalet_id, fecha_entrada, fecha_salida))) {
-    throw new ErrorApp('Esas fechas ya no estan disponibles');
-  }
   const reglas = (await query('SELECT * FROM reglas_precio WHERE chalet_id = $1', [chalet_id]))
     .map((r) => ({ ...r, porcentaje: Number(r.porcentaje) }));
   const { total } = calcularTotal(Number(chalet.precio_noche), reglas, fecha_entrada, fecha_salida);
-  const nueva = await queryUna(
-    `INSERT INTO reservas (chalet_id, cliente_id, fecha_entrada, fecha_salida, huespedes, monto_total)
-     VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-    [chalet_id, clienteId, fecha_entrada, fecha_salida, huespedes, total]
-  );
+
+  // Revisar disponibilidad e insertar debe ser atomico: sin esto, dos clientes
+  // que reservan las mismas fechas al mismo tiempo pasan ambos la revision.
+  // El advisory lock serializa las reservas de un mismo chalet; la segunda
+  // peticion espera, ve la reserva de la primera y es rechazada.
+  const nueva = await conTransaccion(async (tx) => {
+    await tx.query('SELECT pg_advisory_xact_lock($1, $2)', [1, chalet_id]);
+    if (!(await estaDisponible(chalet_id, fecha_entrada, fecha_salida, tx))) {
+      throw new ErrorApp('Esas fechas ya no estan disponibles', 409);
+    }
+    const [fila] = await tx.query(
+      `INSERT INTO reservas (chalet_id, cliente_id, fecha_entrada, fecha_salida, huespedes, monto_total)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+      [chalet_id, clienteId, fecha_entrada, fecha_salida, huespedes, total]
+    );
+    return fila;
+  });
   return componer(await obtenerCrudoReserva(nueva.id));
 }
 

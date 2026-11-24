@@ -63,8 +63,9 @@ export async function nochesOcupadas(chaletId) {
 }
 
 // Un chalet esta disponible en un rango si ninguna reserva viva se solapa.
-export async function estaDisponible(chaletId, entrada, salida) {
-  const reservas = await query(
+// `ejecutor` permite correr la consulta dentro de una transaccion.
+export async function estaDisponible(chaletId, entrada, salida, ejecutor = { query }) {
+  const reservas = await ejecutor.query(
     `SELECT fecha_entrada, fecha_salida FROM reservas
      WHERE chalet_id = $1 AND estado IN ('pendiente','aceptada')`,
     [chaletId]
